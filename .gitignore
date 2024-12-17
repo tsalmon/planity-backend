@@ -4,6 +4,7 @@
 /build
 /chunks
 /merged_files
+/zip_files
 
 # Logs
 logs

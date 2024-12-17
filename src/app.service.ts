@@ -41,7 +41,7 @@ export class AppService {
     const fileName = body.originalname.split('.')[0];
 
     if (existsSync(`${MERGED_FILE_PATH}/${fileName}.csv`)) {
-      throw new HttpException('File exist', HttpStatus.CONFLICT);
+      throw new HttpException('File exist', HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     try {
@@ -53,26 +53,39 @@ export class AppService {
       );
     }
 
+    // end of operations
     if (chunkNumber === totalChunks - 1) {
       try {
         await this.mergeChunks(fileName, totalChunks);
       } catch (error) {
-        throw error;
+        throw new HttpException(
+          error.toString(),
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
 
       try {
         await this.splitByGender(fileName);
       } catch (error) {
-        throw error;
+        throw new HttpException(
+          error.toString(),
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
 
       try {
         await this.createArchive(fileName);
       } catch (error) {
-        throw error;
+        throw new HttpException(
+          error.toString(),
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
+
+      //uploading finished
       return true;
     } else {
+      // uploading not finished yet
       return false;
     }
   }
@@ -81,7 +94,7 @@ export class AppService {
     const zipFilesPath = process.cwd() + '/zip_files';
     const zipFilePath = `${zipFilesPath}/${filename}.zip`;
     const file = createReadStream(zipFilePath);
-    console.log(zipFilePath);
+
     return new StreamableFile(file);
   }
 
@@ -117,19 +130,13 @@ export class AppService {
         fs.mkdirSync(zipFilesPath);
       }
 
-      console.log('init createWriteStream zipFilePath');
       const output = fs.createWriteStream(zipFilePath);
 
-      console.log('init archive');
       const archive = archiver('zip', {
         zlib: { level: 1 },
       });
 
       output.on('close', function () {
-        console.log(archive.pointer() + ' total bytes');
-        console.log(
-          'archiver has been finalized and the output file descriptor has closed.',
-        );
         resolve(1);
       });
 
@@ -158,7 +165,6 @@ export class AppService {
         name: `female-${fileName}.csv`,
       });
 
-      console.log('finalize archive');
       return archive.finalize();
     }).catch((err) => new HttpException(err, HttpStatus.INTERNAL_SERVER_ERROR));
   }
@@ -166,7 +172,6 @@ export class AppService {
   getSeparator(titleHead: string) {
     for (const separator of SEPARATOR) {
       const lineSplit = titleHead.split(separator);
-      console.log(lineSplit);
 
       if (lineSplit.length === NUMBER_COLUMNS) {
         return separator;
